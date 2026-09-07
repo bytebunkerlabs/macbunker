@@ -1,0 +1,5 @@
+# A checkout is a source tree, never a backup root: keep snapshots, logs and personal config out of git.
+snapshots/
+logs/
+macbunker.conf
+.DS_Store

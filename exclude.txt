@@ -1,0 +1,49 @@
+# Patterns left OUT of the home archive (bsdtar --exclude syntax, matched at any depth).
+# A bare name like node_modules excludes every folder with that name; a path like .claude/cache is more specific.
+
+.DS_Store
+node_modules
+.venv
+__pycache__
+.mypy_cache
+.pytest_cache
+.ruff_cache
+
+# Claude Code: caches and transient state. Memory, transcripts, settings, plugins, file-history are KEPT.
+.claude/cache
+.claude/paste-cache
+.claude/debug
+.claude/shell-snapshots
+.claude/telemetry
+.claude/session-env
+.claude/downloads
+.claude/daemon.log
+.claude/daemon.lock
+
+# Codex: reinstallable or bulky (config, auth, rules, skills, sessions, sqlite state are kept)
+.codex/plugins
+.codex/cache
+.codex/computer-use
+.codex/log
+.codex/logs_2.sqlite
+.codex/ipc
+.codex/process_manager
+
+# VS Code / Cursor: per-workspace caches (settings, keybindings, snippets, globalStorage are kept)
+Library/Application Support/Code/User/workspaceStorage
+Library/Application Support/Code/User/History
+Library/Application Support/Cursor/User/workspaceStorage
+Library/Application Support/Cursor/User/History
+
+# Unix sockets cannot be archived (ssh control-master, gpg-agent, iTerm2, Omnissa Horizon)
+.ssh/cm-*
+.ssh/agent
+.gnupg/S.*
+.config/iterm2/sockets
+Library/Application Support/iTerm2/private
+Library/Application Support/iTerm2/*.socket
+.omnissa/horizon-mmfw
+
+# Reinstalled by 'macbunker restore' (50+ MB binaries, pointless to keep 14 copies of)
+.local/bin/uv
+.local/bin/uvx

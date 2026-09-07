@@ -1,0 +1,34 @@
+# macbunker configuration — plain bash, sourced by macbunker.sh.
+# 'macbunker init' copies this to <root>/macbunker.conf; edit that copy.
+
+# How many daily snapshots to keep in <root>/snapshots/
+MACBUNKER_RETENTION=14
+
+# Extra places to copy each snapshot to, colon-separated. Skipped silently when not mounted.
+# Example: MACBUNKER_EXTRA_DESTS="/Volumes/BackupSSD/mac-backups:$HOME/Library/CloudStorage/OneDrive-Personal/mac-backups"
+MACBUNKER_EXTRA_DESTS=""
+
+# Where to look for git repos (colon-separated) and how deep.
+MACBUNKER_REPO_ROOTS="$HOME/Documents:$HOME/Projects:$HOME/dev:$HOME/Desktop"
+MACBUNKER_REPO_DEPTH=4
+
+# Repos to leave alone entirely (colon-separated, relative to home). They are still listed in repos.tsv.
+# Example: MACBUNKER_REPO_SKIP="Documents/huge-course-folder:Documents/datasets"
+MACBUNKER_REPO_SKIP=""
+
+# A repo gets a full-history git bundle only if it has no remote, unpushed commits, or stashes,
+# and its .git folder is under this size. Bigger ones are listed in repos.tsv with a note instead.
+MACBUNKER_MAX_BUNDLE_MB=1024
+
+# Cap for uncommitted-change patches / untracked-file tarballs per repo.
+MACBUNKER_MAX_PATCH_MB=200
+
+# Repos whose remote URL contains one of these owners (plus any repo with no remote) count as "mine":
+# their untracked files are captured, and 'macbunker restore --repos mine' re-clones them.
+# Third-party clones still get a bundle if they hold unpushed commits, plus patches and .env files.
+# Space-separated GitHub users / orgs, e.g. "alice my-company"
+MACBUNKER_REPO_OWNERS=""
+
+# Daily backup time (local). Missed runs (Mac asleep) fire at the next wake.
+MACBUNKER_SCHEDULE_HOUR=13
+MACBUNKER_SCHEDULE_MINUTE=30

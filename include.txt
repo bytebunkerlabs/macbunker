@@ -1,0 +1,67 @@
+# Paths to back up, relative to your home folder. One per line, '#' for comments.
+# Globs (* ? [) are allowed on lines that contain no spaces. Missing paths are skipped silently.
+# Everything here goes into the ENCRYPTED archive, so secrets are fine.
+
+# ── AI coding tools — usually the most painful thing to lose ────────────────
+# ~/.claude holds Claude Code memory (projects/*/memory), transcripts, settings, plugins, skills, agents.
+# ~/.claude.json holds login, MCP servers, per-project trust and preferences.
+.claude
+.claude.json
+.codex
+.copilot
+.cursor
+.mcp-auth
+Library/Application Support/Claude/claude_desktop_config.json
+
+# ── Shell and terminal ────────────────────────────────────────────────────────
+.zshrc
+.zprofile
+.zshenv
+.zlogin
+.p10k.zsh
+.zsh_history
+.zsh_sessions
+.oh-my-zsh/custom
+.bash_profile
+.bashrc
+.bash_history
+.inputrc
+.vimrc
+.viminfo
+.tmux.conf
+.config
+Library/Application Support/iTerm2
+
+# ── Git, GitHub, SSH, GPG ─────────────────────────────────────────────────────
+.gitconfig
+.gitignore
+.gitignore_global
+.github
+.ssh
+.gnupg
+
+# ── Dev tooling ───────────────────────────────────────────────────────────────
+.vscode
+.vscode-shared
+Library/Application Support/Code/User
+Library/Application Support/Cursor/User
+.npmrc
+.yarnrc
+.cargo/config.toml
+.local/bin
+.aws
+.kube
+.docker/config.json
+.terraformrc
+bin
+Brewfile
+*.sh
+*.py
+
+# ── macOS user-level bits ─────────────────────────────────────────────────────
+# (System preferences are captured separately via 'defaults export' — see defaults-restore.txt)
+Library/LaunchAgents
+Library/Fonts
+Library/Services
+Library/Keyboard Layouts
+Library/Spelling

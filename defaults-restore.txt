@@ -1,0 +1,24 @@
+# Preference domains that 'macbunker restore' applies by default (defaults import).
+# Every domain on the machine is exported into each snapshot; this list is just what gets
+# applied automatically. Use 'macbunker restore --all-defaults' to apply all of them.
+# Keep this to things you actually customise; importing random app plists onto a new
+# macOS version can misbehave. Domains that were not on the source Mac are skipped with a warning.
+
+NSGlobalDomain
+com.apple.dock
+com.apple.finder
+com.apple.screencapture
+com.apple.screensaver
+com.apple.AppleMultitouchTrackpad
+com.apple.driver.AppleBluetoothMultitouch.trackpad
+com.apple.HIToolbox
+com.apple.symbolichotkeys
+com.apple.menuextra.clock
+com.apple.controlcenter
+com.apple.WindowManager
+com.apple.Terminal
+com.apple.TextEdit
+com.googlecode.iterm2
+com.microsoft.VSCode
+at.obdev.littlesnitch
+at.obdev.littlesnitch.networkmonitor
