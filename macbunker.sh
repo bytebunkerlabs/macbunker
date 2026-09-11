@@ -22,7 +22,7 @@ set -o pipefail
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/Applications/Visual Studio Code.app/Contents/Resources/app/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-VERSION="1.2.1"
+VERSION="1.3.0"
 SCRIPT_PATH="$0"
 case "$SCRIPT_PATH" in /*) ;; *) SCRIPT_PATH="$PWD/$SCRIPT_PATH" ;; esac
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -39,10 +39,33 @@ KEYCHAIN_SERVICE="macbunker"
 LABEL="ai.bytebunkerlabs.macbunker"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 
+# Scheduled runs: the launchd job ticks every 30 minutes with MACBUNKER_SCHEDULED=1 and this decides
+# whether today's backup is due (at/after the configured time, once per day). Deciding here, from a
+# local marker file, keeps the tick free of protected file access and makes the schedule immune to
+# launchd's calendar quirks (it only rereads the time zone at boot) and to the Mac being asleep at
+# the scheduled minute: the first tick after wake runs it.
+SCHED_MARKER="$LOCAL/last-backup-date"
+if [ "${1:-}" = backup ] && [ "${MACBUNKER_SCHEDULED:-0}" = 1 ]; then
+  _now=$((10#$(date '+%H%M')))
+  _sched_log="$LOGDIR/scheduler.log"
+  mkdir -p "$LOGDIR" 2>/dev/null
+  [ -f "$_sched_log" ] && [ "$(stat -f %z "$_sched_log" 2>/dev/null || echo 0)" -gt 200000 ] && : > "$_sched_log"
+  if [ -f "$SCHED_MARKER" ] && [ "$(cat "$SCHED_MARKER" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]; then
+    printf '%s tick: already backed up today\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$_sched_log"; exit 0
+  fi
+  # the scheduled time is read from the config below; peek at it here without sourcing the whole file
+  _h="$(sed -n 's/^MACBUNKER_SCHEDULE_HOUR=\([0-9]*\).*/\1/p' "$LOCAL/macbunker.conf" 2>/dev/null | tail -n 1)"
+  _m="$(sed -n 's/^MACBUNKER_SCHEDULE_MINUTE=\([0-9]*\).*/\1/p' "$LOCAL/macbunker.conf" 2>/dev/null | tail -n 1)"
+  _due=$(( 10#${_h:-13} * 100 + 10#${_m:-30} ))
+  if [ "$_now" -lt "$_due" ]; then
+    printf '%s tick: not due yet (runs at %02d:%02d)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$((_due / 100))" "$((_due % 100))" >> "$_sched_log"; exit 0
+  fi
+  printf '%s tick: due, starting backup\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$_sched_log"
+fi
 # Unattended runs: record the moment the script starts, before any protected file is touched,
 # so a run that stalls on a permission dialog can be told apart from one that started late.
 if [ "${1:-}" = backup ] && [ ! -t 1 ]; then
-  printf '%s [macbunker] launcher start (pid %s)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$$"
+  printf '%s [macbunker] launcher start (pid %s, scheduled=%s)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$$" "${MACBUNKER_SCHEDULED:-0}"
 fi
 
 # Root = where the installed toolkit and the snapshots live.
@@ -487,6 +510,7 @@ cmd_backup() {
   publish_pending
   copy_extra_dests "$snap" 2>/dev/null || true
   prune_snapshots
+  date '+%Y-%m-%d' > "$SCHED_MARKER"
   local pend; pend="$(pending_count)"
   if [ "$pend" -gt 0 ]; then
     warn "$pend snapshot(s) are still only on this disk ($LOCAL_SNAPS). Run 'macbunker publish' from Terminal, or grant $APP Full Disk Access so the scheduled job can write to $ROOT."
@@ -790,8 +814,9 @@ cmd_status() {
   pend="$(pending_count)"
   [ "$pend" -gt 0 ] && echo "pending:     $pend snapshot(s) only on this disk — run 'macbunker publish'"
   if launchctl print "gui/$(uid)/$LABEL" >/dev/null 2>&1; then
-    printf 'schedule:    daily at %02d:%02d (%s)' "$MACBUNKER_SCHEDULE_HOUR" "$MACBUNKER_SCHEDULE_MINUTE" "$LABEL"
-    launchctl print "gui/$(uid)/$LABEL" 2>/dev/null | grep -q 'last exit code = 0' && echo ", last run OK" || echo ""
+    printf 'schedule:    daily at %02d:%02d, checked every 30 min (%s)' "$MACBUNKER_SCHEDULE_HOUR" "$MACBUNKER_SCHEDULE_MINUTE" "$LABEL"
+    [ -f "$SCHED_MARKER" ] && printf ', last scheduled backup %s' "$(cat "$SCHED_MARKER")"
+    launchctl print "gui/$(uid)/$LABEL" 2>/dev/null | grep -q 'last exit code = 0' && echo ", last tick OK" || echo ""
   else
     echo "schedule:    NOT installed — run 'macbunker schedule'"
   fi
@@ -876,13 +901,10 @@ cmd_schedule() {
   <key>EnvironmentVariables</key>
   <dict>
     <key>MACBUNKER_ROOT</key><string>$ROOT</string>
+    <key>MACBUNKER_SCHEDULED</key><string>1</string>
     <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
-  <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key><integer>$MACBUNKER_SCHEDULE_HOUR</integer>
-    <key>Minute</key><integer>$MACBUNKER_SCHEDULE_MINUTE</integer>
-  </dict>
+  <key>StartInterval</key><integer>1800</integer>
   <key>StandardOutPath</key><string>$LOGDIR/launchd.log</string>
   <key>StandardErrorPath</key><string>$LOGDIR/launchd.log</string>
 </dict>
@@ -891,7 +913,7 @@ EOF
   launchctl bootout "gui/$(uid)" "$PLIST" >/dev/null 2>&1 || true
   launchctl bootstrap "gui/$(uid)" "$PLIST"
   launchctl enable "gui/$(uid)/$LABEL"
-  log "scheduled daily backup at $(printf '%02d:%02d' "$MACBUNKER_SCHEDULE_HOUR" "$MACBUNKER_SCHEDULE_MINUTE") via $LABEL (missed runs fire at next wake)"
+  log "scheduled daily backup at $(printf '%02d:%02d' "$MACBUNKER_SCHEDULE_HOUR" "$MACBUNKER_SCHEDULE_MINUTE") via $LABEL (checked every 30 min; a Mac asleep at that time runs it on the next check)"
   log "first run: macOS may ask whether macbunker may access iCloud Drive / Documents — click Allow, or add $APP under System Settings > Privacy & Security > Full Disk Access"
 }
 

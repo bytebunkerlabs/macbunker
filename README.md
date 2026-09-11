@@ -52,8 +52,12 @@ is mounted.
 
 ## How the daily job works (and the one permission it needs)
 
-A launchd job runs every day at 13:30 (missed runs fire at the next wake). It launches
-`~/Applications/macbunker.app`, a tiny AppleScript wrapper, which runs `macbunker backup`.
+A launchd job ticks every 30 minutes and launches `~/Applications/macbunker.app`, a tiny AppleScript
+wrapper, which runs `macbunker backup`. The script itself decides whether today's backup is due (at or after
+the time in `macbunker.conf`, once per day, tracked in `~/.macbunker/last-backup-date`). A Mac that is asleep
+at that time runs it on the first tick after waking. Ticks are logged to `~/.macbunker/logs/scheduler.log`.
+(launchd's own calendar scheduling is not used: it only rereads the time zone at boot, so on a Mac set up
+in one zone and used in another it fires hours off until the next reboot.)
 
 The wrapper exists because of macOS privacy controls: a launchd job that is just `/bin/bash` is silently
 denied access to iCloud Drive and Documents and is never prompted. An app has its own identity, so macOS
