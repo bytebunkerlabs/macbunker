@@ -3,6 +3,8 @@
 # applied automatically. Use 'macbunker restore --all-defaults' to apply all of them.
 # Keep this to things you actually customise; importing random app plists onto a new
 # macOS version can misbehave. Domains that were not on the source Mac are skipped with a warning.
+# Sandboxed apps (TextEdit, Safari, Mail, Photos, Music…) are never exported: macOS treats reading
+# their preferences as "accessing data from other apps" and re-prompts for it on every scheduled run.
 
 NSGlobalDomain
 com.apple.dock
@@ -17,7 +19,6 @@ com.apple.menuextra.clock
 com.apple.controlcenter
 com.apple.WindowManager
 com.apple.Terminal
-com.apple.TextEdit
 com.googlecode.iterm2
 com.microsoft.VSCode
 at.obdev.littlesnitch

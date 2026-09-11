@@ -22,7 +22,7 @@ set -o pipefail
 
 export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:/Applications/Visual Studio Code.app/Contents/Resources/app/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
-VERSION="1.2.0"
+VERSION="1.2.1"
 SCRIPT_PATH="$0"
 case "$SCRIPT_PATH" in /*) ;; *) SCRIPT_PATH="$PWD/$SCRIPT_PATH" ;; esac
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
@@ -38,6 +38,12 @@ APP="$HOME/Applications/macbunker.app"
 KEYCHAIN_SERVICE="macbunker"
 LABEL="ai.bytebunkerlabs.macbunker"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+
+# Unattended runs: record the moment the script starts, before any protected file is touched,
+# so a run that stalls on a permission dialog can be told apart from one that started late.
+if [ "${1:-}" = backup ] && [ ! -t 1 ]; then
+  printf '%s [macbunker] launcher start (pid %s)\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$$"
+fi
 
 # Root = where the installed toolkit and the snapshots live.
 #   MACBUNKER_ROOT env > a snapshot's toolkit/ copy > the folder this script is installed in > iCloud default
@@ -234,15 +240,30 @@ dump_brew() { # Brewfile
   fi
 }
 
+# Export preference domains WITHOUT touching sandboxed apps: their preferences live in
+# ~/Library/Containers, and reading those is what macOS calls "accessing data from other apps",
+# a permission it re-asks for on every unattended run. Only domains backed by a plain plist in
+# ~/Library/Preferences are exported; media/mail/browser domains are skipped as well (they trigger
+# media-library prompts and are useless on another Mac anyway).
 export_defaults() { # dir
   mkdir -p "$1"
   local d
-  defaults domains 2>/dev/null | tr ',' '\n' | sed 's/^ *//' | while IFS= read -r d; do
+  # Enumerate plain plists directly: 'defaults domains' scans app containers too, which is itself a
+  # protected read.
+  ls "$HOME/Library/Preferences" 2>/dev/null | sed -n 's/\.plist$//p' | while IFS= read -r d; do
     [ -n "$d" ] || continue
+    case "$d" in .GlobalPreferences* | ByHost) continue ;; esac
+    [ -d "$HOME/Library/Containers/$d" ] && continue
+    [ -d "$HOME/Library/Group Containers/$d" ] && continue
+    case "$d" in
+      group.* | com.apple.Music* | com.apple.iTunes* | com.apple.itunes* | com.apple.amp.* | com.apple.Photos* | com.apple.photos* | \
+      com.apple.mail* | com.apple.icloudmailagent | com.apple.MobileSMS* | com.apple.Safari* | com.apple.TV | com.apple.podcasts* | com.apple.news*)
+        continue ;;
+    esac
     defaults export "$d" "$1/$d.plist" 2>/dev/null || true
   done
   defaults export NSGlobalDomain "$1/NSGlobalDomain.plist" 2>/dev/null || true
-  log "exported $(ls "$1" | wc -l | tr -d ' ') preference domains"
+  log "exported $(ls "$1" | wc -l | tr -d ' ') preference domains (sandboxed apps' domains skipped: macOS protects their data)"
 }
 
 expand_includes() { # outfile   (paths relative to $HOME; globs allowed on lines without spaces)
